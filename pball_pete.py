@@ -13,6 +13,24 @@ app = Flask(__name__)
 BOT_PUBLIC_KEY = os.environ["BOT_PUBLIC_KEY"]
 
 
+def validate_date(date_str):
+    """Validate date format (YYYY-MM-DD). Returns (is_valid, error_message)."""
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+        return True, None
+    except ValueError:
+        return False, f"Invalid date format. Use YYYY-MM-DD (e.g., 2026-02-26)"
+
+
+def validate_time(time_str):
+    """Validate time format (HH:MM). Returns (is_valid, error_message)."""
+    try:
+        datetime.strptime(time_str, "%H:%M")
+        return True, None
+    except ValueError:
+        return False, f"Invalid time format. Use HH:MM in 24-hour format (e.g., 14:00)"
+
+
 def get_next_sunday():
     """Get the next coming Sunday as YYYY-MM-DD string."""
     today = datetime.now().date()
@@ -67,6 +85,41 @@ def interactions():
                 "location", "Washington"
             )  # Default to Washington's Landing
             interaction_token = data.get("token")
+
+            # Validate date and time formats
+            date_valid, date_error = validate_date(check_date)
+            if not date_valid:
+                return jsonify(
+                    {
+                        "type": 4,
+                        "data": {
+                            "embeds": [
+                                {
+                                    "title": "Invalid Date Format",
+                                    "description": date_error,
+                                    "color": 15158332,  # Red
+                                }
+                            ]
+                        },
+                    }
+                )
+
+            time_valid, time_error = validate_time(after_time)
+            if not time_valid:
+                return jsonify(
+                    {
+                        "type": 4,
+                        "data": {
+                            "embeds": [
+                                {
+                                    "title": "Invalid Time Format",
+                                    "description": time_error,
+                                    "color": 15158332,  # Red
+                                }
+                            ]
+                        },
+                    }
+                )
 
             # Immediately return a deferred response so Discord doesn't timeout
             def process_availability():
