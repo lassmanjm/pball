@@ -19,7 +19,7 @@ def validate_date(date_str):
         datetime.strptime(date_str, "%Y-%m-%d")
         return True, None
     except ValueError:
-        return False, f"Invalid date format. Use YYYY-MM-DD (e.g., 2026-02-26)"
+        return False, f"'{date_str}' invalid. Use YYYY-MM-DD (e.g., 2026-02-26)"
 
 
 def validate_time(time_str):
@@ -28,7 +28,7 @@ def validate_time(time_str):
         datetime.strptime(time_str, "%H:%M")
         return True, None
     except ValueError:
-        return False, f"Invalid time format. Use HH:MM in 24-hour format (e.g., 14:00)"
+        return False, f"'{time_str}' invalid. Use HH:MM in 24-hour format (e.g., 14:00)"
 
 
 def get_next_sunday():
