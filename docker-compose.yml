@@ -1,0 +1,30 @@
+services:
+  pball-pete:
+    build: .
+    container_name: pball-pete
+    ports:
+      - "8181:8181"
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - BOT_PUBLIC_KEY=${BOT_PUBLIC_KEY}
+      - APPLICATION_ID=${APPLICATION_ID}
+      - GUILD_ID=${GUILD_ID}
+      - FLASK_ENV=production
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8181/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - pball-network
+
+networks:
+  pball-network:
+    driver: bridge

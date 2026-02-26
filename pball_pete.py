@@ -3,13 +3,14 @@ from get_courts_lib import get_availability_dict
 import requests
 import threading
 from datetime import datetime, timedelta
+import os
 
 from nacl.signing import VerifyKey  # pip install PyNaCl
 from nacl.exceptions import BadSignatureError
 
 app = Flask(__name__)
 
-PUBLIC_KEY = "c3c19b382aec52f3c52a0a60d6cf1c3350f67d0a3f6d004736e36f24ee62b17b"
+BOT_PUBLIC_KEY = os.environ["BOT_PUBLIC_KEY"]
 
 
 def get_next_sunday():
@@ -32,7 +33,7 @@ def verify_signature(req):
         return False
 
     try:
-        verify_key = VerifyKey(bytes.fromhex(PUBLIC_KEY))
+        verify_key = VerifyKey(bytes.fromhex(BOT_PUBLIC_KEY))
         verify_key.verify(f"{timestamp}{body}".encode(), bytes.fromhex(signature))
         return True
     except BadSignatureError:
@@ -58,28 +59,63 @@ def interactions():
             options = {
                 opt["name"]: opt["value"] for opt in data["data"].get("options", [])
             }
-            check_date = options.get("date", get_next_sunday())  # Default to next Sunday
+            check_date = options.get(
+                "date", get_next_sunday()
+            )  # Default to next Sunday
             after_time = options.get("time", "10:00")  # Default to 10:00
-            location = options.get("location", "Washington")  # Default to Washington's Landing
+            location = options.get(
+                "location", "Washington"
+            )  # Default to Washington's Landing
             interaction_token = data.get("token")
 
             # Immediately return a deferred response so Discord doesn't timeout
             def process_availability():
                 try:
                     print(f"[BACKGROUND] Fetching availability...")
+                    # If "all" is selected, pass None to get all locations
+                    location_names = None if location == "all" else [location]
                     availability = get_availability_dict(
-                        check_date, location_names=[location], after_time=after_time
+                        check_date, location_names=location_names, after_time=after_time
                     )
                     print(f"[BACKGROUND] Got {len(availability)} courts")
 
                     if not availability:
                         content = "No courts available for that date and time."
                     else:
-                        lines = ["**Available Courts:**\n"]
+                        # Group courts by location
+                        grouped = {}
                         for court_name, info in availability.items():
-                            lines.append(
-                                f"• {court_name}: {info['start_time']} ({info['duration_str']})"
+                            # Extract location from court name (e.g., "Frick-Court 1" -> "Frick")
+                            location_name = (
+                                court_name.split("-")[0].strip()
+                                if "-" in court_name
+                                else "Other"
                             )
+                            if location_name not in grouped:
+                                grouped[location_name] = []
+                            grouped[location_name].append((court_name, info))
+
+                        # Format as plain text table
+                        lines = ["```"]
+                        lines.append("AVAILABLE COURTS")
+                        lines.append("=" * 60)
+                        lines.append(f"Location: {location}")
+                        lines.append(f"Date:     {check_date}")
+                        lines.append(f"Time:     {after_time} or later")
+                        lines.append("=" * 60)
+
+                        for loc in sorted(grouped.keys()):
+                            lines.append(f"\n{loc.upper()}")
+                            lines.append("-" * 60)
+                            for court_name, info in grouped[loc]:
+                                # Extract court number/name after location
+                                court_label = court_name.replace(f"{loc}-", "").strip()
+                                lines.append(
+                                    f"  {court_label:<35} {info['start_time']:>6}  {info['duration_str']:>8}"
+                                )
+
+                        lines.append("=" * 60)
+                        lines.append("```")
                         content = "\n".join(lines)
 
                     # Send the response via webhook
@@ -96,6 +132,7 @@ def interactions():
                 except Exception as e:
                     print(f"[BACKGROUND] ERROR: {e}")
                     import traceback
+
                     traceback.print_exc()
 
             # Start background thread to fetch availability
@@ -115,4 +152,4 @@ def interactions():
 
 
 if __name__ == "__main__":
-    app.run(port=8181)
+    app.run(host="0.0.0.0", port=8181)
