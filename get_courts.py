@@ -72,7 +72,7 @@ def main():
     name_w = max(len(name) for name in available) + 2
     for name, info in available.items():
         print(
-            f"  {name:<{name_w}}  available from {info['start_time']}  ({info['duration_str']})"
+            f"  {name:<{name_w}}  available from {info['start_time']}  ({info['duration_str']})\n{info['URL']}"
         )
 
 

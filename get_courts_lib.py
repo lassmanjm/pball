@@ -40,12 +40,20 @@ def get_all_facilities(session):
     soup = BeautifulSoup(resp.text, "html.parser")
     facilities = []
     for a in soup.select("a.text-semibold.text-primary[href*='facilityId']"):
+        href = a["href"]
         qs = parse_qs(urlparse(a["href"]).query)
         fid = qs.get("facilityId", [None])[0]
         name = a.get_text(strip=True)
         addr_tag = a.find_next("small", class_="text-muted")
         addr = addr_tag.get_text(strip=True) if addr_tag else ""
-        facilities.append({"Id": fid, "Name": name, "Address": addr})
+        facilities.append(
+            {
+                "Id": fid,
+                "Name": name,
+                "Address": addr,
+                "URL": f"{BASE_URL}/Facility/Reserve{href[26:len(href)]}",
+            }
+        )
     return sorted(facilities, key=lambda x: x["Id"])
 
 
@@ -162,6 +170,7 @@ def check_court_availability(session, facilities, check_date, after_time=None):
                 "start_time": start_time,
                 "duration_minutes": duration_minutes,
                 "duration_str": duration_str,
+                "URL": facility["URL"],
             }
 
     return result
@@ -209,6 +218,6 @@ def get_availability_dict(check_date, location_names=None, after_time=None):
     if not facilities:
         return {}
 
-    return check_court_availability(session, facilities, check_date, after_time=after_time)
-
-
+    return check_court_availability(
+        session, facilities, check_date, after_time=after_time
+    )
